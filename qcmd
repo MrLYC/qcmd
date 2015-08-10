@@ -1,0 +1,76 @@
+#!python                                                                                                                    
+# encoding: utf-8
+ 
+from os import path, listdir, popen
+ 
+ 
+def find(txt, substr=""):
+    substr = substr or txt 
+ 
+    if substr in txt:
+        return True
+    return False
+ 
+ 
+def start_cmd(name, args):
+    cmd = "start %s %s" % (name, " ".join(args))
+    for i in popen(cmd):
+        print i
+    return cmd
+ 
+ 
+def cmd_list(cmdpath, strict, allow_ext):
+    cmd_lst = []
+    for file in listdir(cmdpath):
+        cmd, ext = path.splitext(file)
+        if ext not in allow_ext:
+            continue
+        if not cmd:
+            continue
+        if not strict:
+            cmd = cmd.lower()
+        cmd_lst.append(cmd)
+    return cmd_lst
+    
+    
+if __name__ == "__main__":
+    import argparse
+    from functools import partial
+ 
+    parser = argparse.ArgumentParser()
+ 
+    parser.add_argument("substr", help="sub string of a cmd")
+    parser.add_argument("-s", "--strict", action="store_true", help="do not ignore case")
+    parser.add_argument("-p", "--path", default="~/bin", help="command path")
+    parser.add_argument("-l", "--look", action="store_true", help="just a look")
+    parser.add_argument("-a", "--args", nargs="*", default=(), help="command arguments")
+ 
+    args = parser.parse_args()
+    bindir = path.realpath(path.expanduser(args.path))
+    cmd_lst = cmd_list(bindir, args.strict, (".lnk", ".exe", ".bat", ""))
+ 
+    func = partial(
+        find,
+        substr=args.substr.lower() if args.strict else args.substr)
+    real_cmds = filter(func, cmd_lst)
+ 
+    cmd_len = len(real_cmds)
+    if cmd_len == 1:
+        cmd = real_cmds[0]
+	if args.look:
+	    print "found:", cmd
+	else:
+            print start_cmd(cmd, args.args)
+ 
+    elif cmd_len > 1:
+        print "%d commands found" % len(real_cmds)
+        for i, cmd in enumerate(real_cmds):
+            print "  %d:%s" % (i + 1, cmd)
+        if not args.look:
+            n = raw_input("enter the number: ")
+            if n:
+                print start_cmd(real_cmds[int(n) - 1], args.args)
+ 
+    else:
+        if raw_input("command not found, enter to start: %s" % args.substr) == "":
+            print start_cmd(args.substr, args.args)
